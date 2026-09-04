@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CS2 Pick'em Pro</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0f1923; color: #fff; margin: 0; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        h1 { text-align: center; color: #ff4655; text-transform: uppercase; }
+        .card { background: #1f2326; border-radius: 8px; padding: 20px; margin-bottom: 20px; border: 1px solid #36393e; }
+        .match-row { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
+        .team-btn { background: #2b2f32; color: #fff; border: 2px solid #36393e; padding: 12px 24px; font-weight: bold; cursor: pointer; border-radius: 6px; transition: 0.2s; width: 45%; }
+        .team-btn:hover { border-color: #ff4655; background: #36393e; }
+        .team-btn.selected { background: #ff4655; border-color: #ff4655; }
+        .auth-box { text-align: center; margin-bottom: 30px; }
+        .btn-primary { background: #ff4655; color: white; border: none; padding: 10px 20px; border-radius: 4px; font-weight: bold; cursor: pointer; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { text-align: left; padding: 10px; border-bottom: 1px solid #36393e; }
+        th { color: #ff4655; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>CS2 Pick'em Stream</h1>
+        
+        <div class="auth-box card" id="auth-section">
+            <p>Авторизуйтесь, чтобы делать прогнозы:</p>
+            <button class="btn-primary" onclick="loginWithTwitch()">Войти через Twitch</button>
+        </div>
+
+        <div class="card">
+            <h2> Предстоящие матчи</h2>
+            <div id="matches-list">Загрузка матчей...</div>
+        </div>
+
+        <div class="card">
+            <h2>🏆 Таблица лидеров</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Игрок</th>
+                        <th>Очки</th>
+                    </tr>
+                </thead>
+                <tbody id="leaderboard">
+                    <tr><td colspan="3">Загрузка рейтинга...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // ВСТАВЬ СВОИ ДАННЫЕ ИЗ SUPABASE СУДА:
+        const SUPABASE_URL = 'https://laoislanasiyylmfhsvd.supabase.co/rest/v1/';
+        const SUPABASE_KEY = 'sb_publishable_ZpnHYzEYk70PH3E2dxFOoA_rdB6jqaF';
+        
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        async function loadLeaderboard() {
+            const { data, error } = await supabase.from('leaderboard').select('*').limit(10);
+            const container = document.getElementById('leaderboard');
+            if (error || !data) {
+                container.innerHTML = '<tr><td colspan="3">Ошибка загрузки</td></tr>';
+                return;
+            }
+            container.innerHTML = data.map((item, index) => `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td>${item.user_name || 'Аноним'}</td>
+                    <td><b>${item.correct_predictions}</b></td>
+                </tr>
+            `).join('');
+        }
+
+        loadLeaderboard();
+    </script>
+</body>
+</html>
