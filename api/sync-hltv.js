@@ -1,13 +1,12 @@
-import { createClient } from '@supabase/supabase-js';
+const { createClient } = require('@supabase/supabase-js');
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   try {
-    // Получаем матчи напрямую через легкий публичный API
     const response = await fetch('https://hltv-api.vercel.app/api/matches.json');
     const matches = await response.json();
 
@@ -15,7 +14,6 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Failed to fetch matches from HLTV' });
     }
 
-    // Берем 10 ближайших CS2 матчей
     const upcoming = matches.slice(0, 10);
 
     for (const match of upcoming) {
@@ -32,4 +30,4 @@ export default async function handler(req, res) {
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
-}
+};
