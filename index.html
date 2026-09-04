@@ -52,14 +52,14 @@
 
     <script>
         const SUPABASE_URL = 'https://laoislanasiyylmfhsvd.supabase.co';
-        // Вставь ниже свой Publishable Key из Supabase (начинается на sb_publishable_...)
         const SUPABASE_KEY = 'sb_publishable_ZpnHYzEYk70PH3E2dxFOoA_rdB6jqaF';
         
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        // Переименовали клиент в supabaseClient, чтобы не было конфликта
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         let currentUser = null;
 
         async function init() {
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { user } } = await supabaseClient.auth.getUser();
             currentUser = user;
 
             if (user) {
@@ -72,24 +72,24 @@
         }
 
         async function loginWithTwitch() {
-            await supabase.auth.signInWithOAuth({
+            await supabaseClient.auth.signInWithOAuth({
                 provider: 'twitch',
                 redirectTo: window.location.origin
             });
         }
 
         async function loadMatches() {
-            const { data: matches } = await supabase.from('matches').select('*').is('winner', null);
+            const { data: matches } = await supabaseClient.from('matches').select('*').is('winner', null);
             const container = document.getElementById('matches-list');
             
             if (!matches || matches.length === 0) {
-                container.innerHTML = '<p style="color:#888;">Пока нет доступных матчей. Добавь их в админке Supabase!</p>';
+                container.innerHTML = '<p style="color:#888;">Пока нет доступных матчей.</p>';
                 return;
             }
 
             let myPredictions = {};
             if (currentUser) {
-                const { data: preds } = await supabase.from('predictions').select('*').eq('user_id', currentUser.id);
+                const { data: preds } = await supabaseClient.from('predictions').select('*').eq('user_id', currentUser.id);
                 if (preds) preds.forEach(p => myPredictions[p.match_id] = p.predicted_winner);
             }
 
@@ -107,7 +107,7 @@
         async function makePrediction(matchId, team) {
             if (!currentUser) return alert('Сначала войдите через Twitch!');
             
-            const { error } = await supabase.from('predictions').upsert({
+            const { error } = await supabaseClient.from('predictions').upsert({
                 user_id: currentUser.id,
                 match_id: matchId,
                 predicted_winner: team
@@ -118,7 +118,7 @@
         }
 
         async function loadLeaderboard() {
-            const { data } = await supabase.from('leaderboard').select('*').limit(10);
+            const { data } = await supabaseClient.from('leaderboard').select('*').limit(10);
             const container = document.getElementById('leaderboard');
             if (!data || data.length === 0) {
                 container.innerHTML = '<tr><td colspan="3" style="color:#888;">Пока нет очков</td></tr>';
