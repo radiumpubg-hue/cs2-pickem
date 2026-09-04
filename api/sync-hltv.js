@@ -1,4 +1,3 @@
-import { HLTV } from 'hltv';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -8,19 +7,23 @@ const supabase = createClient(
 
 export default async function handler(req, res) {
   try {
-    const matches = await HLTV.getMatches();
-    
+    // Получаем матчи напрямую через легкий публичный API
+    const response = await fetch('https://hltv-api.vercel.app/api/matches.json');
+    const matches = await response.json();
+
+    if (!Array.isArray(matches)) {
+      return res.status(500).json({ error: 'Failed to fetch matches from HLTV' });
+    }
+
     // Берем 10 ближайших CS2 матчей
-    const upcoming = matches
-      .filter(m => m.team1 && m.team2 && m.date)
-      .slice(0, 10);
+    const upcoming = matches.slice(0, 10);
 
     for (const match of upcoming) {
       await supabase.from('matches').upsert({
-        id: match.id.toString(),
-        team_a: match.team1.name,
-        team_b: match.team2.name,
-        start_time: new Date(match.date).toISOString(),
+        id: match.id ? match.id.toString() : Math.random().toString(),
+        team_a: match.team1?.name || 'TBA',
+        team_b: match.team2?.name || 'TBA',
+        start_time: match.date ? new Date(match.date).toISOString() : new Date().toISOString(),
         winner: match.result ? (match.result.team1 > match.result.team2 ? 'team_a' : 'team_b') : null
       }, { onConflict: 'id' });
     }
