@@ -3,35 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CS2 Pick'em Pro</title>
+    <title>CS2 Pick'em Stream</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0f1923; color: #fff; margin: 0; padding: 20px; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #0f1923; color: #fff; margin: 0; padding: 20px; }
         .container { max-width: 800px; margin: 0 auto; }
-        h1 { text-align: center; color: #ff4655; text-transform: uppercase; }
+        h1 { text-align: center; color: #ff4655; margin-bottom: 30px; }
         .card { background: #1f2326; border-radius: 8px; padding: 20px; margin-bottom: 20px; border: 1px solid #36393e; }
-        .match-row { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
-        .team-btn { background: #2b2f32; color: #fff; border: 2px solid #36393e; padding: 12px 24px; font-weight: bold; cursor: pointer; border-radius: 6px; transition: 0.2s; width: 45%; }
-        .team-btn:hover { border-color: #ff4655; background: #36393e; }
-        .team-btn.selected { background: #ff4655; border-color: #ff4655; }
-        .auth-box { text-align: center; margin-bottom: 30px; }
-        .btn-primary { background: #ff4655; color: white; border: none; padding: 10px 20px; border-radius: 4px; font-weight: bold; cursor: pointer; }
+        .match-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; background: #2b2f32; padding: 15px; border-radius: 6px; }
+        .team-btn { background: #1f2326; color: #fff; border: 2px solid #36393e; padding: 10px 20px; font-weight: bold; cursor: pointer; border-radius: 6px; font-size: 16px; transition: 0.2s; }
+        .team-btn:hover { border-color: #ff4655; }
+        .team-btn.active { background: #ff4655; border-color: #ff4655; }
+        .auth-box { text-align: center; }
+        .btn-primary { background: #9146FF; color: white; border: none; padding: 12px 24px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 16px; }
+        .btn-primary:hover { background: #772ce8; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { text-align: left; padding: 10px; border-bottom: 1px solid #36393e; }
+        th, td { text-align: left; padding: 12px; border-bottom: 1px solid #36393e; }
         th { color: #ff4655; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>CS2 Pick'em Stream</h1>
+        <h1>CS2 PICK'EM STREAM</h1>
         
         <div class="auth-box card" id="auth-section">
-            <p>Авторизуйтесь, чтобы делать прогнозы:</p>
-            <button class="btn-primary" onclick="loginWithTwitch()">Войти через Twitch</button>
+            <div id="user-info">
+                <button class="btn-primary" onclick="loginWithTwitch()">Войти через Twitch</button>
+            </div>
         </div>
 
         <div class="card">
-            <h2> Предстоящие матчи</h2>
+            <h2>⚔️ Предстоящие матчи</h2>
             <div id="matches-list">Загрузка матчей...</div>
         </div>
 
@@ -39,43 +41,99 @@
             <h2>🏆 Таблица лидеров</h2>
             <table>
                 <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Игрок</th>
-                        <th>Очки</th>
-                    </tr>
+                    <tr><th>#</th><th>Игрок</th><th>Угадано</th></tr>
                 </thead>
                 <tbody id="leaderboard">
-                    <tr><td colspan="3">Загрузка рейтинга...</td></tr>
+                    <tr><td colspan="3">Загрузка...</td></tr>
                 </tbody>
             </table>
         </div>
     </div>
 
     <script>
-        // ВСТАВЬ СВОИ ДАННЫЕ ИЗ SUPABASE СУДА:
-        const SUPABASE_URL = 'https://laoislanasiyylmfhsvd.supabase.co/rest/v1/';
-        const SUPABASE_KEY = 'sb_publishable_ZpnHYzEYk70PH3E2dxFOoA_rdB6jqaF';
+        const SUPABASE_URL = 'https://laoislanasiyylmfhsvd.supabase.co';
+        // Вставь ниже свой Publishable Key из Supabase (начинается на sb_publishable_...)
+        const SUPABASE_KEY = 'ВСТАВЬ_СЮДА_СВОЙ_PUBLISHABLE_KEY';
         
         const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        let currentUser = null;
 
-        async function loadLeaderboard() {
-            const { data, error } = await supabase.from('leaderboard').select('*').limit(10);
-            const container = document.getElementById('leaderboard');
-            if (error || !data) {
-                container.innerHTML = '<tr><td colspan="3">Ошибка загрузки</td></tr>';
+        async function init() {
+            const { data: { user } } = await supabase.auth.getUser();
+            currentUser = user;
+
+            if (user) {
+                const username = user.user_metadata.full_name || user.user_metadata.name || 'Прогнозист';
+                document.getElementById('user-info').innerHTML = `Привет, <b>${username}</b>! Делай свои прогнозы:`;
+            }
+
+            loadMatches();
+            loadLeaderboard();
+        }
+
+        async function loginWithTwitch() {
+            await supabase.auth.signInWithOAuth({
+                provider: 'twitch',
+                redirectTo: window.location.origin
+            });
+        }
+
+        async function loadMatches() {
+            const { data: matches } = await supabase.from('matches').select('*').is('winner', null);
+            const container = document.getElementById('matches-list');
+            
+            if (!matches || matches.length === 0) {
+                container.innerHTML = '<p style="color:#888;">Пока нет доступных матчей. Добавь их в админке Supabase!</p>';
                 return;
             }
-            container.innerHTML = data.map((item, index) => `
+
+            let myPredictions = {};
+            if (currentUser) {
+                const { data: preds } = await supabase.from('predictions').select('*').eq('user_id', currentUser.id);
+                if (preds) preds.forEach(p => myPredictions[p.match_id] = p.predicted_winner);
+            }
+
+            container.innerHTML = matches.map(m => `
+                <div class="match-row">
+                    <button class="team-btn ${myPredictions[m.id] === 'team_a' ? 'active' : ''}" 
+                            onclick="makePrediction('${m.id}', 'team_a')">${m.team_a}</button>
+                    <span style="font-weight:bold; color:#888;">VS</span>
+                    <button class="team-btn ${myPredictions[m.id] === 'team_b' ? 'active' : ''}" 
+                            onclick="makePrediction('${m.id}', 'team_b')">${m.team_b}</button>
+                </div>
+            `).join('');
+        }
+
+        async function makePrediction(matchId, team) {
+            if (!currentUser) return alert('Сначала войдите через Twitch!');
+            
+            const { error } = await supabase.from('predictions').upsert({
+                user_id: currentUser.id,
+                match_id: matchId,
+                predicted_winner: team
+            }, { onConflict: 'user_id,match_id' });
+
+            if (error) alert('Ошибка сохранения: ' + error.message);
+            else loadMatches();
+        }
+
+        async function loadLeaderboard() {
+            const { data } = await supabase.from('leaderboard').select('*').limit(10);
+            const container = document.getElementById('leaderboard');
+            if (!data || data.length === 0) {
+                container.innerHTML = '<tr><td colspan="3" style="color:#888;">Пока нет очков</td></tr>';
+                return;
+            }
+            container.innerHTML = data.map((item, i) => `
                 <tr>
-                    <td>${index + 1}</td>
-                    <td>${item.user_name || 'Аноним'}</td>
+                    <td>${i + 1}</td>
+                    <td>${item.user_name || 'Зритель'}</td>
                     <td><b>${item.correct_predictions}</b></td>
                 </tr>
             `).join('');
         }
 
-        loadLeaderboard();
+        init();
     </script>
 </body>
 </html>
